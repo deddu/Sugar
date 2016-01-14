@@ -1,8 +1,8 @@
 /*
- *  Sugar Library edge
+ *  Sugar Library custom
  *
  *  Freely distributable and licensed under the MIT-style license.
- *  Copyright (c) 2015 Andrew Plummer
+ *  Copyright (c) 2016 Andrew Plummer
  *  http://sugarjs.com/
  *
  * ---------------------------- */
@@ -317,24 +317,6 @@
     klass = klass || className(obj);
     // .callee exists on Arguments objects in < IE8
     return hasProperty(obj, 'length') && (klass === '[object Arguments]' || !!obj.callee);
-  }
-
-  function multiArgs(args, fn, from) {
-    var result = [], i = from || 0, len;
-    for(len = args.length; i < len; i++) {
-      result.push(args[i]);
-      if (fn) fn.call(args, args[i], i);
-    }
-    return result;
-  }
-
-  function flattenedArgs(args, fn, from) {
-    var arg = args[from || 0];
-    if (isArray(arg)) {
-      args = arg;
-      from = 0;
-    }
-    return multiArgs(args, fn, from);
   }
 
   function checkCallback(fn) {
@@ -661,10 +643,12 @@
       return entryAtIndex(obj, length, args[0], overshoot, isString);
     }
     result = [];
-    multiArgs(args, function(index) {
-      if (isBoolean(index)) return false;
-      result.push(entryAtIndex(obj, length, index, overshoot, isString));
-    });
+    for (var i = 0; i < args.length; i++) {
+      var index = args[i];
+      if (!isBoolean(index)) {
+        result.push(entryAtIndex(obj, length, index, overshoot, isString));
+      }
+    }
     return result;
   }
 
@@ -1102,12 +1086,16 @@
      *
      ***/
     'bind': function(scope) {
-      var fn = this, args = multiArgs(arguments, null, 1), bound;
+      // Optimized: no leaking arguments
+      var boundArgs = [], $i; for($i = 1; $i < arguments.length; $i++) boundArgs.push(arguments[$i]);
+      var fn = this, bound;
       if (!isFunction(this)) {
         throw new TypeError('Function.prototype.bind called on a non-function');
       }
       bound = function() {
-        return fn.apply(fn.prototype && this instanceof fn ? this : scope, args.concat(multiArgs(arguments)));
+        // Optimized: no leaking arguments
+        var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+        return fn.apply(fn.prototype && this instanceof fn ? this : scope, boundArgs.concat(args));
       }
       bound.prototype = this.prototype;
       return bound;
@@ -1381,18 +1369,15 @@
     return arr;
   }
 
-  function arrayRemove(arr, args) {
-    multiArgs(args, function(f) {
-      var i = 0, matcher = getMatcher(f);
-      while(i < arr.length) {
-        if (matcher(arr[i], i, arr)) {
-          arr.splice(i, 1);
-        } else {
-          i++;
-        }
+  function arrayRemoveElement(arr, f) {
+    var i = 0, matcher = getMatcher(f);
+    while(i < arr.length) {
+      if (matcher(arr[i], i, arr)) {
+        arr.splice(i, 1);
+      } else {
+        i++;
       }
-    });
-    return arr;
+    }
   }
 
   function arrayUnique(arr, map) {
@@ -1491,14 +1476,6 @@
 
   function isArrayLike(obj) {
     return hasProperty(obj, 'length') && !isString(obj) && !isPlainObject(obj);
-  }
-
-  function flatArguments(args) {
-    var result = [];
-    multiArgs(args, function(arg) {
-      result = result.concat(arg);
-    });
-    return result;
   }
 
   function elementExistsInHash(hash, key, element, isReference) {
@@ -1646,8 +1623,7 @@
   function buildEnhancements() {
     var nativeMap = array.prototype.map;
     var callbackCheck = function() {
-      var args = arguments;
-      return args.length > 0 && !isFunction(args[0]);
+      return arguments.length > 0 && !isFunction(arguments[0]);
     };
     extendSimilar(array, 'every,some,filter,find,findIndex', function(methods, name) {
       var nativeFn = array.prototype[name]
@@ -1708,13 +1684,18 @@
      *
      ***/
     'create': function() {
+      // Optimized: no leaking arguments
       var result = [];
-      multiArgs(arguments, function(a) {
+      for (var i = 0; i < arguments.length; i++) {
+        var a = arguments[i];
         if (isArgumentsObject(a) || isArrayLike(a)) {
-          a = multiArgs(a);
+          for (var j = 0; j < a.length; j++) {
+            result.push(a[j]);
+          }
+          continue;
         }
         result = result.concat(a);
-      });
+      }
       return result;
     }
 
@@ -1881,7 +1862,11 @@
      *
      ***/
     'exclude': function() {
-      return arrayRemove(arrayClone(this), arguments);
+      var arr = arrayClone(this);
+      for (var i = 0; i < arguments.length; i++) {
+        arrayRemoveElement(arr, arguments[i]);
+      }
+      return arr;
     },
 
     /***
@@ -1943,7 +1928,9 @@
      *
      ***/
     'union': function() {
-      return arrayUnique(this.concat(flatArguments(arguments)));
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return arrayUnique(this.concat(args));
     },
 
     /***
@@ -1958,7 +1945,9 @@
      *
      ***/
     'intersect': function() {
-      return arrayIntersect(this, flatArguments(arguments), false);
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return arrayIntersect(this, args, false);
     },
 
     /***
@@ -1974,7 +1963,9 @@
      *
      ***/
     'subtract': function(a) {
-      return arrayIntersect(this, flatArguments(arguments), true);
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return arrayIntersect(this, args, true);
     },
 
     /***
@@ -1993,7 +1984,9 @@
      *
      ***/
     'at': function() {
-      return getEntriesForIndexes(this, arguments);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return getEntriesForIndexes(this, args);
     },
 
     /***
@@ -2292,7 +2285,8 @@
      *
      ***/
     'zip': function() {
-      var args = multiArgs(arguments);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
       return this.map(function(el, i) {
         return [el].concat(args.map(function(k) {
           return (i in k) ? k[i] : null;
@@ -2367,7 +2361,10 @@
      *
      ***/
     'remove': function() {
-      return arrayRemove(this, arguments);
+      for (var i = 0; i < arguments.length; i++) {
+        arrayRemoveElement(this, arguments[i]);
+      }
+      return this;
     },
 
     /***
@@ -2418,7 +2415,8 @@
      *
      ***/
     'none': function(f) {
-      var args = multiArgs(arguments);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
       return !sugarArray.some.apply(this, [this].concat(args));
     }
 
@@ -4162,17 +4160,25 @@
           return moveToEndOfUnit(this, name);
         };
         since = function() {
-          return compareSince(timeDistanceTraversal, this, arguments);
+          // Optimized: no leaking arguments
+          var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+          return compareSince(timeDistanceTraversal, this, args);
         };
         until = function() {
-          return compareUntil(timeDistanceTraversal, this, arguments);
+          // Optimized: no leaking arguments
+          var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+          return compareUntil(timeDistanceTraversal, this, args);
         };
       } else {
         since = function() {
-          return compareSince(timeDistanceNumeric, this, arguments);
+          // Optimized: no leaking arguments
+          var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+          return compareSince(timeDistanceNumeric, this, args);
         };
         until = function() {
-          return compareUntil(timeDistanceNumeric, this, arguments);
+          // Optimized: no leaking arguments
+          var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+          return compareUntil(timeDistanceNumeric, this, args);
         };
       }
       methods[name + 'sAgo']     = until;
@@ -4336,15 +4342,21 @@
     extend(date, {
       'utc': {
         'create': function() {
-          return createDateFromArgs(null, arguments, 0, true);
+          // Optimized: no leaking arguments
+          var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+          return createDateFromArgs(null, args, 0, true);
         },
 
         'past': function() {
-          return createDateFromArgs(null, arguments, -1, true);
+          // Optimized: no leaking arguments
+          var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+          return createDateFromArgs(null, args, -1, true);
         },
 
         'future': function() {
-          return createDateFromArgs(null, arguments, 1, true);
+          // Optimized: no leaking arguments
+          var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+          return createDateFromArgs(null, args, 1, true);
         }
       }
     }, false);
@@ -4385,7 +4397,9 @@
      *
      ***/
     'create': function() {
-      return createDateFromArgs(null, arguments);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return createDateFromArgs(null, args);
     },
 
      /***
@@ -4403,7 +4417,9 @@
      *
      ***/
     'past': function() {
-      return createDateFromArgs(null, arguments, -1);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return createDateFromArgs(null, args, -1);
     },
 
      /***
@@ -4421,7 +4437,9 @@
      *
      ***/
     'future': function() {
-      return createDateFromArgs(null, arguments, 1);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return createDateFromArgs(null, args, 1);
     },
 
      /***
@@ -4492,7 +4510,9 @@
      *
      ***/
     'get': function(s) {
-      return createDateFromArgs(this, arguments);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return createDateFromArgs(this, args);
     },
 
      /***
@@ -4510,7 +4530,9 @@
      *
      ***/
     'set': function() {
-      return setDate(this, arguments);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return setDate(this, args);
     },
 
      /***
@@ -4655,7 +4677,9 @@
      *
      ***/
     'advance': function() {
-      return advanceDate(this, arguments);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return advanceDate(this, args);
     },
 
      /***
@@ -4671,8 +4695,10 @@
      *
      ***/
     'rewind': function() {
-      var args = collectDateArguments(arguments, true);
-      return updateDate(this, args[0], args[1], -1);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      var a = collectDateArguments(args, true);
+      return updateDate(this, a[0], a[1], -1);
     },
 
      /***
@@ -5056,10 +5082,14 @@
       return round(this * multiplier);
     }
     function after() {
-      return sugarDate[u.addMethod](createDateFromArgs(null, arguments), this);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return sugarDate[u.addMethod](createDateFromArgs(null, args), this);
     }
     function before() {
-      return sugarDate[u.addMethod](createDateFromArgs(null, arguments), -this);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return sugarDate[u.addMethod](createDateFromArgs(null, args), -this);
     }
     methods[name] = base;
     methods[name + 's'] = base;
@@ -5708,7 +5738,9 @@
       // If the execution has locked and it's immediate, then
       // allow 1 less in the queue as 1 call has already taken place.
       if (queue.length < limit - (locked && immediate ? 1 : 0)) {
-        queue.push([this, arguments]);
+        // Optimized: no leaking arguments
+        var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+        queue.push([this, args]);
       }
       if (!locked) {
         locked = true;
@@ -5725,7 +5757,11 @@
   }
 
   function stringifyArguments() {
-    return stringify(arguments);
+    var str = '';
+    for (var i = 0; i < arguments.length; i++) {
+      str += stringify(arguments[i]);
+    }
+    return str;
   }
 
   function createMemoizedFunction(fn, hashFn) {
@@ -5797,8 +5833,10 @@
     'debounce': function(ms) {
       var fn = this;
       function debounced() {
+        // Optimized: no leaking arguments
+        var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
         cancelFunction(debounced);
-        setDelay(debounced, ms, fn, this, arguments);
+        setDelay(debounced, ms, fn, this, args);
       };
       return debounced;
     },
@@ -5817,7 +5855,8 @@
      ***/
     'delay': function(ms) {
       var fn = this;
-      var args = multiArgs(arguments, null, 1);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 1; $i < arguments.length; $i++) args.push(arguments[$i]);
       setDelay(fn, ms, fn, fn, args);
       return fn;
     },
@@ -5835,8 +5874,9 @@
      *
      ***/
     'every': function(ms) {
-      var fn = this, args = arguments;
-      args = args.length > 1 ? multiArgs(args, null, 1) : [];
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 1; $i < arguments.length; $i++) args.push(arguments[$i]);
+      var fn = this;
       function execute () {
         // Set the delay first here, so that cancel
         // can be called within the executing function.
@@ -5885,7 +5925,9 @@
       }
       return function() {
         var ret;
-        storedArguments.push(multiArgs(arguments));
+        // Optimized: no leaking arguments
+        var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+        storedArguments.push(args);
         counter++;
         if (counter == num) {
           ret = fn.call(this, storedArguments);
@@ -5944,13 +5986,23 @@
      *
      ***/
     'fill': function() {
-      var fn = this, curried = multiArgs(arguments);
+      // Optimized: no leaking arguments
+      var curried = [], $i; for($i = 0; $i < arguments.length; $i++) curried.push(arguments[$i]);
+      var fn = this;
       return function() {
-        var args = multiArgs(arguments);
-        curried.forEach(function(arg, index) {
-          if (arg != null || index >= args.length) args.splice(index, 0, arg);
-        });
-        return fn.apply(this, args);
+        var argIndex = 0, result = [];
+        for (var i = 0; i < curried.length; i++) {
+          if (curried[i] != null) {
+            result[i] = curried[i];
+          } else {
+            result[i] = arguments[i];
+            argIndex++;
+          }
+        }
+        for (var i = argIndex; i < arguments.length; i++) {
+          result.push(arguments[i]);
+        }
+        return fn.apply(this, result);
       }
     }
 
@@ -6474,11 +6526,11 @@
     var match, result = obj instanceof Hash ? new Hash : {};
     iterateOverObject(obj, function(key, value) {
       match = false;
-      flattenedArgs(args, function(arg) {
-        if (matchInObject(arg, key, value)) {
+      for (var i = 0; i < args.length; i++) {
+        if (matchInObject(args[i], key, value)) {
           match = true;
         }
-      }, 1);
+      }
       if (match === select) {
         result[key] = value;
       }
@@ -6913,7 +6965,9 @@
      *
      ***/
     'select': function (obj) {
-      return selectFromObject(obj, arguments, true);
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 1; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return selectFromObject(obj, args, true);
     },
 
     /***
@@ -6931,7 +6985,9 @@
      *
      ***/
     'reject': function (obj) {
-      return selectFromObject(obj, arguments, false);
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 1; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return selectFromObject(obj, args, false);
     },
 
     /***
@@ -7262,13 +7318,14 @@
 
   function stringAssign(str, args) {
     var obj = {};
-    flattenedArgs(args, function(a, i) {
+    for (var i = 0; i < args.length; i++) {
+      var a = args[i];
       if (isObjectType(a)) {
         simpleMerge(obj, a);
       } else {
         obj[i + 1] = a;
       }
-    });
+    }
     return str.replace(/\{([^{]+?)\}/g, function(m, key) {
       return hasOwnProperty(obj, key) ? obj[key] : m;
     });
@@ -7307,7 +7364,7 @@
       replacementFn = lastArg;
       args.length = lastIndex;
     }
-    tags = flattenedArgs(args).map(function(tag) {
+    tags = args.map(function(tag) {
       return escapeRegExp(tag);
     }).join('|');
     reg = regexp('<(\\/)?(' + (tags || '[^\\s>]+') + ')(\\s+[^<>]*?)?\\s*(\\/)?>', 'gi');
@@ -7950,7 +8007,9 @@
      *
      ***/
     'at': function() {
-      return getEntriesForIndexes(this, arguments, true);
+      // Optimized: no leaking arguments
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args.push(arguments[$i]);
+      return getEntriesForIndexes(this, args, true);
     },
 
     /***
@@ -8059,7 +8118,9 @@
      *
      ***/
     'stripTags': function() {
-      return replaceTags(this, arguments, true);
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return replaceTags(this, args, true);
     },
 
     /***
@@ -8077,7 +8138,9 @@
      *
      ***/
     'removeTags': function() {
-      return replaceTags(this, arguments, false);
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return replaceTags(this, args, false);
     },
 
     /***
@@ -8223,7 +8286,9 @@
      *
      ***/
     'assign': function() {
-      return stringAssign(this, arguments);
+      // Optimized: no leaking arguments (flat)
+      var args = [], $i; for($i = 0; $i < arguments.length; $i++) args = args.concat(arguments[$i]);
+      return stringAssign(this, args);
     },
 
     /***
