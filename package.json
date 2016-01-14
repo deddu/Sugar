@@ -1,6 +1,6 @@
 {
-  "name": "sugar",
-  "version": "1.4.1",
+  "name": "@hyatt/sugar",
+  "version": "1.4.2",
   "description": "A Javascript library for working with native objects.",
   "keywords": [
     "sugarjs",
@@ -15,6 +15,12 @@
   ],
   "homepage": "http://sugarjs.com/",
   "author": "Andrew Plummer",
+  "contributors": [
+    {
+      "name": "Andrea Cadeddu",
+      "email": "andrea.cadeddu@hyatt.com"
+    }
+  ],
   "main": "./release/sugar-full.dev.js",
   "directories": {
     "lib": "./release"
@@ -29,7 +35,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/andrewplummer/Sugar.git"
+    "url": "ssh://git@stash.hyattdev.com:7999/~1325695/sugar.git"
+  },
+  "publishConfig": {
+    "registry": "http://artifacts.hyattdev.com:8081/artifactory/api/npm/npm-local/"
   },
   "engines": {
     "node": ">= 0.8.23"
