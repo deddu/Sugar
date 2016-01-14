@@ -1,6 +1,6 @@
 {
   "name": "@hyatt/sugar",
-  "version": "1.4.2",
+  "version": "1.4.4",
   "description": "A Javascript library for working with native objects.",
   "keywords": [
     "sugarjs",
