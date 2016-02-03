@@ -9,6 +9,7 @@ package('Date | Portuguese', function () {
   });
 
   method('create', function() {
+    dateEqual(testCreateDate('3/fev/2015'), new Date(2015, 1, 3), 'intl support');
     dateEqual(testCreateDate('15 de maio 2011'), new Date(2011, 4, 15), 'basic Portuguese date');
     dateEqual(testCreateDate('5 de janeiro de 2012'), new Date(2012, 0, 5), '2012-01-05');
     dateEqual(testCreateDate('maio de 2011'), new Date(2011, 4), 'year and month');

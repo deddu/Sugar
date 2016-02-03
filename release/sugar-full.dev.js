@@ -9563,7 +9563,7 @@ Sugar.Date.addLocale('fi', {
 
 Sugar.Date.addLocale('fr', {
   'plural': true,
-  'months': 'janvier,février|fevrier|févr.|fevr.,mars,avril,mai,juin,juillet,août,septembre,octobre,novembre,décembre|decembre',
+  'months': 'janvier,février|fevrier|févr.|fevr.,mars,avril,mai,juin,juillet|juil.,août,septembre,octobre,novembre,décembre|decembre',
   'weekdays': 'dimanche,lundi,mardi,mercredi,jeudi,vendredi,samedi',
   'units': 'milliseconde:|s,seconde:|s,minute:|s,heure:|s,jour:|s,semaine:|s,mois,an:|s|née|nee',
   'numbers': 'un:|e,deux,trois,quatre,cinq,six,sept,huit,neuf,dix',
@@ -10000,11 +10000,12 @@ Sugar.Date.addLocale('pl', {
 
 Sugar.Date.addLocale('pt', {
   'plural': true,
-  'months': 'janeiro,fevereiro,março,abril,maio,junho,julho,agosto,setembro,outubro,novembro,dezembro',
+  'months': 'jan:eiro|,fev:ereiro|,mar:ço|,abr:il|,mai:o|,jun:ho|,jul:ho|,ago:sto|,set:embro|,out:ubro|,nov:embro|,dez:embro|',
   'weekdays': 'domingo,segunda-feira,terça-feira,quarta-feira,quinta-feira,sexta-feira,sábado|sabado',
   'units': 'milisegundo:|s,segundo:|s,minuto:|s,hora:|s,dia:|s,semana:|s,mês|mêses|mes|meses,ano:|s',
   'numbers': 'um:|a,dois|duas,três|tres,quatro,cinco,seis,sete,oito,nove,dez',
   'tokens': 'a,de',
+  // 'short':  '{dd}/{mon}/{yyyy}',
   'short':'{d} de {month} de {yyyy}',
   'long': '{d} de {month} de {yyyy} {H}:{mm}',
   'full': '{Weekday}, {d} de {month} de {yyyy} {H}:{mm}:{ss}',
@@ -10030,6 +10031,8 @@ Sugar.Date.addLocale('pt', {
     '{0?} {shift} {unit=5-7}'
   ],
   'timeParse': [
+    '{date?}\/{month}\/{year?}',
+    // '{date?}{1?}{mon?}{1?}{year?}',
     '{date?} {1?} {month} {1?} {year?}',
     '{0?} {shift} {weekday}'
   ]
@@ -10045,7 +10048,7 @@ Sugar.Date.addLocale('pt', {
  */
 Sugar.Date.addLocale('ru', {
   'firstDayOfWeekYear': 1,
-  'months': 'янв:аря||арь,февр|фев:раля||раль,март:а|,апр:еля||ель,мая|май,июня|июнь,июля|июль,авг:уста||уст,сен:тября||тябрь,окт:ября||ябрь,ноя:бря||брь,дек:абря||абрь',
+  'months': 'янв:аря||арь,февр|фев:раля||раль,март:а|,апр:еля||ель,мая|май,июня|июнь,июля|июль,авг:уста||уст,сент|сен:тября||тябрь,окт:ября||ябрь,нояб|ноя:бря||брь,дек:абря||абрь',
   'weekdays': 'воскресенье|вс,понедельник|пн,вторник|вт,среда|ср,четверг|чт,пятница|пт,суббота|сб',
   'units': 'миллисекунд:а|у|ы|,секунд:а|у|ы|,минут:а|у|ы|,час:||а|ов,день|день|дня|дней,недел:я|ю|и|ь|е,месяц:||а|ев|е,год|год|года|лет|году',
   'numbers': 'ноль,од:ин|ну,дв:а|е,три,четыре,пять,шесть,семь,восемь,девять,десять',
